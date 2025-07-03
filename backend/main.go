@@ -3,17 +3,37 @@ package main
 import (
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
+	"log"
 	"net/http"
 )
 
 type User struct {
-	Phone    string
+	ID       uint   `gorm:"primaryKey"`
+	Phone    string `gorm:"unique"`
 	Password string
 }
 
-var users = map[string]User{}
+var db *gorm.DB
+
+func initDB() {
+	dsn := "host=localhost user=postgres password=12345678 dbname=telegram_clone port=5432 sslmode=disable"
+	var err error
+	db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
+
+	if err != nil {
+		log.Fatal("Failed to connect to database: ", err)
+	}
+	log.Println("✅ Connected to database")
+
+	db.AutoMigrate(&User{})
+}
 
 func main() {
+
+	initDB()
+
 	r := gin.Default()
 
 	r.Use(func(c *gin.Context) {
@@ -37,20 +57,23 @@ func main() {
 			return
 		}
 
-		_, exists := users[body.Phone]
-		c.JSON(http.StatusOK, gin.H{"exists": exists})
+		var user User
+		result := db.Where("phone = ?", body.Phone).First(&user)
+
+		c.JSON(http.StatusOK, gin.H{"exists": result.Error == nil})
 	})
 
 	r.POST("/register", func(c *gin.Context) {
 		var body struct {
-			Phone    string `json: "phone"`
-			Password string `json: "password"`
+			Phone    string `json:"phone"`
+			Password string `json:"password"`
 		}
 		if err := c.BindJSON(&body); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON input"})
 			return
 		}
-		if _, exists := users[body.Phone]; exists {
+		var existing User
+		if err := db.Where("phone = ? ", body.Phone).First(&existing).Error; err == nil {
 			c.JSON(http.StatusConflict, gin.H{"error": "User already exists"})
 			return
 		}
@@ -61,9 +84,14 @@ func main() {
 			return
 		}
 
-		users[body.Phone] = User{
+		newUser := User{
 			Phone:    body.Phone,
 			Password: string(hashedPassword),
+		}
+
+		if err := db.Create(&newUser).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user"})
+			return
 		}
 
 		c.JSON(http.StatusCreated, gin.H{"message": "User registered successfully"})
@@ -72,17 +100,17 @@ func main() {
 
 	r.POST("/login", func(c *gin.Context) {
 		var body struct {
-			Phone    string `json: "phone"`
-			Password string `json: "password"`
+			Phone    string `json:"phone"`
+			Password string `json:"password"`
 		}
 
 		if err := c.BindJSON(&body); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON input"})
 			return
 		}
-		user, exists := users[body.Phone]
 
-		if !exists {
+		var user User
+		if err := db.Where("phone = ?", body.Phone).First(&user).Error; err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "User not found"})
 			return
 		}

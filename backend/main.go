@@ -3,15 +3,17 @@ package main
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/joho/godotenv"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"log"
 	"net/http"
+	"os"
 	"time"
 )
 
-var jwtSecret = []byte("supersecretkey")
+var jwtSecret = []byte(os.Getenv("JWT_SECRET"))
 
 func generateToken(phone string) (string, error) {
 	claims := jwt.MapClaims{
@@ -83,6 +85,11 @@ func main() {
 		}
 		c.Next()
 	})
+
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
 
 	r.POST("/check-user", func(c *gin.Context) {
 		var body struct {

@@ -2,12 +2,49 @@ package main
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"log"
 	"net/http"
+	"time"
 )
+
+var jwtSecret = []byte("supersecretkey")
+
+func generateToken(phone string) (string, error) {
+	claims := jwt.MapClaims{
+		"phone": phone,
+		"exp":   time.Now().Add(24 * time.Hour).Unix(),
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString(jwtSecret)
+}
+
+func validateToken(tokenString string) (*jwt.Token, error) {
+	return jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		return jwtSecret, nil
+	})
+}
+
+func authMiddleware(c *gin.Context) {
+	authHeader := c.GetHeader("Authorization")
+	if authHeader == "" {
+		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Missing token"})
+		return
+	}
+
+	token, err := validateToken(authHeader)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
+		return
+	}
+
+	claims := token.Claims.(jwt.MapClaims)
+	c.Set("phone", claims["phone"])
+	c.Next()
+}
 
 type User struct {
 	ID       uint   `gorm:"primaryKey"`
@@ -122,7 +159,21 @@ func main() {
 			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{"message": "Login successful"})
+		token, err := generateToken(user.Phone)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"message": "Login successful",
+			"token":   token,
+		})
+	})
+
+	r.GET("/me", authMiddleware, func(c *gin.Context) {
+		phone := c.MustGet("phone").(string)
+		c.JSON(http.StatusOK, gin.H{"message": "Welcome back!", "phone": phone})
 	})
 
 	r.Run(":8080")

@@ -1,18 +1,24 @@
 import {createRouter , createWebHistory} from 'vue-router' 
-import LoginPage from '../views/LoginPage.vue' 
-import AuthPage from '../views/Authorization.vue'
+import PhonePage from '../views/PhonePage.vue' 
+import LoginPage from '../views/LoginPage.vue'
+import RegisterPage from '../views/RegisterPage.vue'
 
 const routes = [
     {
         path: '/' , 
-        name: 'Login' , 
-        component: LoginPage
+        name: 'Phone' , 
+        component: PhonePage 
     } , 
     {
-        path: '/auth' , 
-        name: 'Authorization' , 
-        component: AuthPage
-    }
+        path: '/login' , 
+        name: 'Login' , 
+        component: LoginPage 
+    } , 
+    {
+        path: '/register' , 
+        name: 'Register' , 
+        component : RegisterPage , 
+    } , 
 ]
 
 const router = createRouter({

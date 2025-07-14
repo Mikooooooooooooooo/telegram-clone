@@ -9,7 +9,7 @@
                 </div>
             </div>
             <BaseText type="subtitle">Enter your telegram login code</BaseText>
-            <Input @getValue="getPass" text="Code" class="input" :disabled="isDisabled"/>
+            <Input v-model="code" text="Code" class="input" @keyup.enter="submit" />
             <div class="error" v-if="error">{{error}}</div>
         </div>
     </div>
@@ -61,6 +61,7 @@ img{
     const phone = route.query.phone 
     const error = ref(null)
     const isDisabled = ref(false)
+    const code = ref(null)
 
     
     function formatPhone(raw) {
@@ -78,9 +79,9 @@ img{
       return parts.join(' ')
     }
 
-    function getPass(code){
+    function submit(){
         isDisabled.value = true 
-        api.post('/login' , {phone: phone , password: code})
+        api.post('/login' , {phone: phone , password: code.value})
             .then(res => {
                 console.log("Login success")
             })

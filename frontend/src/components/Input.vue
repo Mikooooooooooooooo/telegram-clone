@@ -1,9 +1,3 @@
-<template>
-    <div class="input">
-        <input :placeholder="text" :disabled="disabled" @keyup.enter="returnCode" v-model="value"/>
-    </div>
-</template>
-
 <style scoped>
 input{
     outline: none ; 
@@ -23,17 +17,28 @@ input:hover{
 </style>
 
 <script setup>
-    import {ref} from 'vue'
-    const props = defineProps({
-        text: String , 
-        disabled: Boolean
-    })  
+import { ref, watch } from 'vue'
 
-    const value = ref("")
+const props = defineProps({
+  modelValue: String,
+  text: String,
+  disabled: Boolean
+})
 
-    const emit = defineEmits(['getValue'])
+const emit = defineEmits(['update:modelValue'])
 
-    function returnCode() {
-        emit('getValue' , value.value)
-    } 
+function onInput(event) {
+  emit('update:modelValue', event.target.value)
+}
 </script>
+
+<template>
+  <div class="input">
+    <input
+      :placeholder="text"
+      :disabled="disabled"
+      :value="modelValue"
+      @input="onInput"
+    />
+  </div>
+</template>

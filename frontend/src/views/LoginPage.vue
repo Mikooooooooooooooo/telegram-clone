@@ -5,11 +5,11 @@
             <div class="edit">
                 <BaseText type="font-main"> {{ formatPhone(phone) }}</BaseText>
                 <div class="icon_container">
-                   <img class="icon" src="@/assets/edit.png" />
+                   <img @click="toPhone" class="icon" src="@/assets/edit.png" />
                 </div>
             </div>
             <BaseText type="subtitle">Enter your telegram login code</BaseText>
-            <Input v-model="code" text="Code" class="input" @keyup.enter="submit" />
+            <Input v-model="code"  :disabled="isDisabled" text="Code" class="input" @keyup.enter="submit" />
             <div class="error" v-if="error">{{error}}</div>
         </div>
     </div>
@@ -47,6 +47,9 @@ img{
   font-size: 14px;
   margin-top: 8px;
 }
+.icon{
+    cursor: pointer ; 
+}
 </style>
 
 <script setup>
@@ -54,10 +57,11 @@ img{
     import BaseText from '@/components/BaseText.vue'
     import Logo from '@/components/TelegramLogo.vue' 
     import Input from '@/components/Input.vue' 
-    import {useRoute} from 'vue-router'
+    import {useRoute , useRouter} from 'vue-router'
     import api from '@/api'
 
     const route = useRoute() 
+    const router = useRouter() 
     const phone = route.query.phone 
     const error = ref(null)
     const isDisabled = ref(false)
@@ -79,22 +83,35 @@ img{
       return parts.join(' ')
     }
 
-    function submit(){
-        isDisabled.value = true 
-        api.post('/login' , {phone: phone , password: code.value})
-            .then(res => {
-                console.log("Login success")
-            })
-            .catch(err => {
-                error.value = "Wrong code. Try again"
-                console.error("Wrong password")
-                setTimeout(() => {
-                    error.value = null
-                }, 3000)
-            })
-            .finally(() => {
-                isDisabled.value = false
-            })
+    
+    function submit() {
+      if (!code.value) {
+        error.value = "Please enter a code"
+        return
+      }
+    
+      isDisabled.value = true
+    
+      api.post('/login', { phone: phone, password: code.value })
+        .then(res => {
+          console.log("Login success")
+          localStorage.setItem('token', res.data.token)
+          router.push('/me')
+        })
+        .catch(err => {
+          error.value = "Wrong code. Try again"
+          console.error("Wrong password")
+          setTimeout(() => {
+            error.value = null
+          }, 3000)
+        })
+        .finally(() => {
+          isDisabled.value = false
+        })
+    }
+    
+    function toPhone(){
+        router.push('/')
     }
 
 </script>

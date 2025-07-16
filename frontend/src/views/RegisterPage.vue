@@ -95,6 +95,8 @@ img{
         })
         .then(res => {
             console.log("Registration successful")
+            localStorage.setItem('token' , res.data.token)
+            router.push('/me')
         })
         .catch(err => {
             console.error("Registration failed", err)

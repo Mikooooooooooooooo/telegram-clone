@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/joho/godotenv"
@@ -13,7 +14,7 @@ import (
 	"time"
 )
 
-var jwtSecret = []byte(os.Getenv("JWT_SECRET"))
+var jwtSecret []byte
 
 func generateToken(phone string) (string, error) {
 	claims := jwt.MapClaims{
@@ -25,9 +26,25 @@ func generateToken(phone string) (string, error) {
 }
 
 func validateToken(tokenString string) (*jwt.Token, error) {
-	return jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+	claims := jwt.MapClaims{}
+	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
 		return jwtSecret, nil
 	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	if exp, ok := claims["exp"].(float64); ok {
+		if int64(exp) < time.Now().Unix() {
+			return nil, fmt.Errorf("token expired")
+		}
+	}
+
+	return token, nil
 }
 
 func authMiddleware(c *gin.Context) {
@@ -39,6 +56,7 @@ func authMiddleware(c *gin.Context) {
 
 	token, err := validateToken(authHeader)
 	if err != nil {
+		log.Println("Token validation error:", err)
 		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
 		return
 	}
@@ -91,6 +109,8 @@ func main() {
 		log.Fatal("Error loading .env file")
 	}
 
+	jwtSecret = []byte(os.Getenv("JWT_SECRET"))
+
 	r.POST("/check-user", func(c *gin.Context) {
 		var body struct {
 			Phone string `json:"phone"`
@@ -138,7 +158,17 @@ func main() {
 			return
 		}
 
-		c.JSON(http.StatusCreated, gin.H{"message": "User registered successfully"})
+		token, err := generateToken(newUser.Phone)
+
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
+			return
+		}
+
+		c.JSON(http.StatusCreated, gin.H{
+			"message": "User registered successfully",
+			"token":   token,
+		})
 
 	})
 

@@ -18,7 +18,7 @@ onMounted(async () => {
     try {
       const { data } = await api.get('/me')
       console.log('Welcome back', data.phone)
-      router.push('/me')
+      router.push('/main')
     } catch (err) {
       console.error('Token invalid:', err)
       localStorage.removeItem('token')

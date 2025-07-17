@@ -96,7 +96,7 @@ img{
         .then(res => {
           console.log("Login success")
           localStorage.setItem('token', res.data.token)
-          router.push('/me')
+          router.push('/main')
         })
         .catch(err => {
           error.value = "Wrong code. Try again"
